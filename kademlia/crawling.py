@@ -142,7 +142,6 @@ class NodeSpiderCrawl(SpiderCrawl):
             else:
                 self.nearest.push(response.getNodeList())
         self.nearest.remove(toremove)
-
         if self.nearest.allBeenContacted():
             return list(self.nearest)
         return await self.find()

@@ -5,6 +5,8 @@ import random
 import pickle
 import asyncio
 import logging
+import os
+import socket, select
 
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
@@ -38,11 +40,59 @@ class Server(object):
         self.ksize = ksize
         self.alpha = alpha
         self.storage = storage or ForgetfulStorage()
-        self.node = Node(node_id or digest(random.getrandbits(255)))
+        self.node = Node(digest(node_id) or digest(random.getrandbits(255)))
         self.transport = None
         self.protocol = None
         self.refresh_loop = None
         self.save_state_loop = None
+        self.setup_stethoscope()
+
+    def setup_stethoscope(self):
+        socket.setdefaulttimeout(0.1)
+        self.connected = []
+        self.heartbeat_port = os.getenv('HEARTBEAT_PORT', 31233)
+        self.stethoscope_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.stethoscope_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.stethoscope_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.stethoscope_sock.setblocking(0)
+        self.stethoscope_sock.bind(('0.0.0.0', self.heartbeat_port))
+        self.stethoscope_sock.listen(64)
+        asyncio.ensure_future(self.stethoscope())
+
+    async def stethoscope(self):
+        self.epoll = select.epoll()
+        self.epoll.register(self.stethoscope_sock.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
+        self.connections = {}
+        try:
+            while True:
+                events = self.epoll.poll(1)
+                for fileno, event in events:
+                    if fileno == self.stethoscope_sock.fileno():
+                        conn, addr = self.stethoscope_sock.accept()
+                        log.info("Client (%s, %s) connected" % addr)
+                    elif event & select.EPOLLIN:
+                        conn, addr, node = self.connections[fileno]
+                        self.epoll.unregister(fileno)
+                        conn.close()
+                        del self.connections[fileno]
+                        # remove from routing tables
+                        self.protocol.router.removeContact(node)
+                        log.info("Client (%s, %s) disconnected" % addr)
+
+                await asyncio.sleep(1)
+        finally:
+            self.epoll.unregister(self.stethoscope_sock.fileno())
+            self.epoll.close()
+            self.stethoscope_sock.close()
+
+    def connect_to_neighbor(self, node):
+        if os.getenv('HOST_IP') == node.ip: return
+        addr = (node.ip, self.heartbeat_port)
+        conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connections[conn.fileno()] = (conn, addr, node)
+        conn.connect(addr)
+        self.epoll.register(conn.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
+        log.info("Client (%s, %s) connected" % addr)
 
     def stop(self):
         if self.transport is not None:
@@ -55,7 +105,7 @@ class Server(object):
             self.save_state_loop.cancel()
 
     def _create_protocol(self):
-        return self.protocol_class(self.node, self.storage, self.ksize)
+        return self.protocol_class(self.node, self.storage, self.ksize, self)
 
     def listen(self, port, interface='0.0.0.0'):
         """
@@ -130,7 +180,9 @@ class Server(object):
 
     async def bootstrap_node(self, addr):
         result = await self.protocol.ping(addr, self.node.id)
-        return Node(result[1], addr[0], addr[1]) if result[0] else None
+        if result[0]:
+            self.connect_to_neighbor(addr[0])
+            return Node(result[1], addr[0], addr[1])
 
     async def get(self, key):
         """
@@ -167,7 +219,7 @@ class Server(object):
 
     async def set_digest(self, dkey, value):
         """
-        Set the given SHA1 digest key (bytes) to the given value in the
+        Set the given sha1 digest key (bytes) to the given value in the
         network.
         """
         node = Node(dkey)
