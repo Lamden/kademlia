@@ -4,12 +4,12 @@ import kademlia
 
 setup(
     name="kademlia",
-    version=kademlia.__version__,
+    version='1.0.1',
     description="Kademlia is a distributed hash table for decentralized peer-to-peer computer networks.",
     author="Brian Muller",
     author_email="bamuller@gmail.com",
     license="MIT",
-    url="http://github.com/bmuller/kademlia",
+    url="https://github.com/Lamden/kademlia",
     packages=find_packages(),
     install_requires=["rpcudp>=3.0.0"]
 )
