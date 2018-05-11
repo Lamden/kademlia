@@ -26,7 +26,7 @@ class Network(object):
 
     protocol_class = KademliaProtocol
 
-    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood'):
+    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood', loop=None):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -37,6 +37,7 @@ class Network(object):
             storage: An instance that implements
                      :interface:`~kademlia.storage.IStorage`
         """
+        self.loop = loop if loop else asyncio.get_event_loop()
         self.ksize = ksize
         self.alpha = alpha
         self.port = os.getenv('NETWORK_PORT', 5678)
@@ -129,20 +130,18 @@ class Network(object):
 
         Provide interface="::" to accept ipv6 address
         """
-        loop = asyncio.get_event_loop()
-        listen = loop.create_datagram_endpoint(self._create_protocol,
+        listen = self.loop.create_datagram_endpoint(self._create_protocol,
                                                local_addr=(interface, port))
         log.info("Node %i listening on %s:%i",
                  self.node.long_id, interface, port)
-        self.transport, self.protocol = loop.run_until_complete(listen)
+        self.transport, self.protocol = self.loop.run_until_complete(listen)
         # finally, schedule refreshing table
         self.refresh_table()
 
     def refresh_table(self):
         log.debug("Refreshing routing table")
         asyncio.ensure_future(self._refresh_table())
-        loop = asyncio.get_event_loop()
-        self.refresh_loop = loop.call_later(3600, self.refresh_table)
+        self.refresh_loop = self.loop.call_later(3600, self.refresh_table)
 
     async def _refresh_table(self):
         """
@@ -301,8 +300,7 @@ class Network(object):
                         By default, 10 minutes.
         """
         self.saveState(fname)
-        loop = asyncio.get_event_loop()
-        self.save_state_loop = loop.call_later(frequency,
+        self.save_state_loop = self.loop.call_later(frequency,
                                                self.saveStateRegularly,
                                                fname,
                                                frequency)

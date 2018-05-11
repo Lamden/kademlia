@@ -9,20 +9,20 @@ import os, sys, uuid, time, threading, uuid, asyncio, random, zmq.asyncio, warni
 from zmq.utils.monitor import recv_monitor_message
 
 log = get_logger(__name__)
-loop = asyncio.get_event_loop()
 asyncio.set_event_loop(loop)
 
 class DHT:
-    def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True):
+    def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True, loop=None):
+        self.loop = loop if loop else asyncio.get_event_loop()
         self.discovery_mode = mode
         self.rediscover_interval = rediscover_interval
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
 
         self.listen_for_crawlers()
-        self.ips = loop.run_until_complete(discover(self.discovery_mode))
+        self.ips = self.loop.run_until_complete(discover(self.discovery_mode))
 
         self.network_port = os.getenv('NETWORK_PORT', 5678)
-        self.network = Network(node_id=node_id)
+        self.network = Network(node_id=node_id, loop=self.loop)
         self.network.listen(self.network_port)
 
         self.join_network()
@@ -35,7 +35,7 @@ class DHT:
 
         if block:
             log.debug('Server started and blocking...')
-            loop.run_forever()
+            self.loop.run_forever()
 
     @staticmethod
     def command_line_interface(q):
@@ -79,7 +79,7 @@ class DHT:
         log.debug('Joining network: {}'.format(self.ips))
         try:
             self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
-            loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
+            self.loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
         except: pass
 
     def listen_for_crawlers(self):
