@@ -1,1 +1,1 @@
-include discovery/data/world.csv
+include kademlia/discovery/data/world.csv
