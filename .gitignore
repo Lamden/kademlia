@@ -7,3 +7,6 @@ build
 dist
 kademlia.egg-info
 docs/_build
+kademlia/discovery/data/IP2LOCATION-LITE-DB5.csv
+*.DS_Store
+*/logs

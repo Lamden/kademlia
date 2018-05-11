@@ -5,7 +5,6 @@ import hashlib
 import operator
 import asyncio
 
-
 async def gather_dict(d):
     cors = list(d.values())
     results = await asyncio.gather(*cors)

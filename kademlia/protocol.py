@@ -1,16 +1,15 @@
 import random
 import asyncio
-import logging
 import select
 import socket
 
 from rpcudp.protocol import RPCProtocol
-
+from kademlia.logger import get_logger
 from kademlia.node import Node
 from kademlia.routing import RoutingTable
 from kademlia.utils import digest
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class KademliaProtocol(RPCProtocol):

@@ -1,10 +1,9 @@
 from collections import Counter
-import logging
-
+from kademlia.logger import get_logger
 from kademlia.node import Node, NodeHeap
 from kademlia.utils import gather_dict
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class SpiderCrawl(object):
@@ -95,6 +94,7 @@ class ValueSpiderCrawl(SpiderCrawl):
                 peer = self.nearest.getNodeById(peerid)
                 self.nearestWithoutValue.push(peer)
                 self.nearest.push(response.getNodeList())
+
         self.nearest.remove(toremove)
 
         if len(foundValues) > 0:
@@ -128,6 +128,18 @@ class NodeSpiderCrawl(SpiderCrawl):
         """
         Find the closest nodes.
         """
+        if self.target_node_id:
+            for peer in self.nearest:
+                if peer.id == self.target_node_id:
+                    del self.target_node_id
+                    return peer
+        return await self._find(self.protocol.callFindNode)
+
+    async def find_ip(self, node_id=None):
+        """
+        Find the closest nodes.
+        """
+        if node_id: self.target_node_id = node_id
         return await self._find(self.protocol.callFindNode)
 
     async def _nodesFound(self, responses):
@@ -142,6 +154,30 @@ class NodeSpiderCrawl(SpiderCrawl):
             else:
                 self.nearest.push(response.getNodeList())
         self.nearest.remove(toremove)
+        if self.nearest.allBeenContacted():
+            return list(self.nearest)
+        return await self.find()
+
+class NodeIPSpiderCrawl(SpiderCrawl):
+    async def find(self):
+        """
+        Find the closest nodes.
+        """
+        return await self._find(self.protocol.callFindNode)
+
+    async def _nodesFound(self, responses):
+        """
+        Handle the result of an iteration in _find.
+        """
+        toremove = []
+        for peerid, response in responses.items():
+            response = RPCFindResponse(response)
+            if not response.happened():
+                toremove.append(peerid)
+            else:
+                self.nearest.push(response.getNodeList())
+        self.nearest.remove(toremove)
+        log.debug('>>>>>> {} {}'.format(list(self.nearest), self))
         if self.nearest.allBeenContacted():
             return list(self.nearest)
         return await self.find()
