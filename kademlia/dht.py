@@ -1,7 +1,7 @@
 from kademlia.discovery.msg import *
 from kademlia.discovery.ip import *
 from kademlia.discovery.ddd import *
-from kademlia.network import Network as DHT
+from kademlia.network import Network
 from kademlia.utils import digest
 from kademlia.logger import get_logger
 from queue import Queue
@@ -12,7 +12,7 @@ log = get_logger(__name__)
 loop = asyncio.get_event_loop()
 asyncio.set_event_loop(loop)
 
-class Server:
+class DHT:
     def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True):
         self.discovery_mode = mode
         self.rediscover_interval = rediscover_interval
@@ -21,9 +21,9 @@ class Server:
         self.listen_for_crawlers()
         self.ips = loop.run_until_complete(discover(self.discovery_mode))
 
-        self.dht_port = os.getenv('DHT_PORT', 5678)
-        self.dht = DHT(node_id=node_id)
-        self.dht.listen(self.dht_port)
+        self.network_port = os.getenv('NETWORK_PORT', 5678)
+        self.network = Network(node_id=node_id)
+        self.network.listen(self.network_port)
 
         self.join_network()
 
@@ -66,12 +66,12 @@ class Server:
 
     async def set_value(self, key, val):
         log.debug('setting {} to {}...'.format(key, val))
-        output = await asyncio.ensure_future(self.dht.set(key, val))
+        output = await asyncio.ensure_future(self.network.set(key, val))
         log.debug('done!')
 
     async def get_value(self, key):
         log.debug('getting {}...'.format(key))
-        res = await asyncio.ensure_future(self.dht.get(key))
+        res = await asyncio.ensure_future(self.network.get(key))
         log.debug('res={}'.format(res))
         return res
 
@@ -79,7 +79,7 @@ class Server:
         log.debug('Joining network: {}'.format(self.ips))
         try:
             self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
-            loop.run_until_complete(self.dht.bootstrap([(ip, self.dht_port) for ip in self.ips]))
+            loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
         except: pass
 
     def listen_for_crawlers(self):
