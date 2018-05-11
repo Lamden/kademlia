@@ -15,7 +15,7 @@ import resource
 SOCKET_LIMIT = 2500
 log = get_logger(__name__)
 resource.setrlimit(resource.RLIMIT_NOFILE, (SOCKET_LIMIT, SOCKET_LIMIT))
-port = os.getenv('DDD_PORT', 31337)
+port = os.getenv('CRAWLER_PORT', 31337)
 ctx = zmq.Context()
 
 async def discover(mode):

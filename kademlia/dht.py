@@ -16,7 +16,7 @@ class DHT:
     def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True):
         self.discovery_mode = mode
         self.rediscover_interval = rediscover_interval
-        self.server_port = os.getenv('DDD_PORT', 31337)
+        self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
 
         self.listen_for_crawlers()
         self.ips = loop.run_until_complete(discover(self.discovery_mode))
@@ -83,7 +83,7 @@ class DHT:
         except: pass
 
     def listen_for_crawlers(self):
-        port = self.server_port
+        port = self.crawler_port
         self.ctx = ctx = zmq.asyncio.Context()
         self.sock = sock = ctx.socket(zmq.REP)
         sock.bind("tcp://*:{}".format(port))
@@ -99,4 +99,4 @@ class DHT:
             socket.send(compose_msg())
 
 if __name__ == '__main__':
-    server = Server(node_id='vk_{}'.format(get_public_ip()), block=True, cmd_cli=True)
+    server = DHT(node_id='vk_{}'.format(os.getenv('HOST_IP', '127.0.0.1')), block=True, cmd_cli=True)
