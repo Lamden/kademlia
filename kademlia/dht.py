@@ -30,7 +30,7 @@ class DHT:
 
         if cmd_cli:
             self.q = Queue()
-            self.cli_thread = threading.Thread(name='cmd_cli', target=Server.command_line_interface, args=(self.q,))
+            self.cli_thread = threading.Thread(name='cmd_cli', target=DHT.command_line_interface, args=(self.q,))
             self.cli_thread.start()
             asyncio.ensure_future(self.recv_cli())
 
