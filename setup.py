@@ -11,5 +11,8 @@ setup(
     license="MIT",
     url="https://github.com/Lamden/kademlia",
     packages=find_packages(),
-    install_requires=["rpcudp>=3.0.0"]
+    install_requires=["rpcudp>=3.0.0"],
+    package_data={
+        'world': 'discovery/data/world.csv'
+    }
 )
