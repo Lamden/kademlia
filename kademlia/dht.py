@@ -9,11 +9,12 @@ import os, sys, uuid, time, threading, uuid, asyncio, random, zmq.asyncio, warni
 from zmq.utils.monitor import recv_monitor_message
 
 log = get_logger(__name__)
-asyncio.set_event_loop(loop)
+
 
 class DHT:
     def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True, loop=None):
         self.loop = loop if loop else asyncio.get_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.discovery_mode = mode
         self.rediscover_interval = rediscover_interval
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)

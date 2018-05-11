@@ -38,6 +38,7 @@ class Network(object):
                      :interface:`~kademlia.storage.IStorage`
         """
         self.loop = loop if loop else asyncio.get_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.ksize = ksize
         self.alpha = alpha
         self.port = os.getenv('NETWORK_PORT', 5678)
