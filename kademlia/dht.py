@@ -12,13 +12,14 @@ log = get_logger(__name__)
 
 
 class DHT:
-    def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True, loop=None):
+    def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True, loop=None, ctx=None):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
         self.discovery_mode = mode
         self.rediscover_interval = rediscover_interval
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
-
+        
+        self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
         self.ips = self.loop.run_until_complete(discover(self.discovery_mode))
 
@@ -85,7 +86,6 @@ class DHT:
 
     def listen_for_crawlers(self):
         port = self.crawler_port
-        self.ctx = ctx = zmq.asyncio.Context()
         self.sock = sock = ctx.socket(zmq.REP)
         sock.bind("tcp://*:{}".format(port))
         log.debug('Listening to the world on port {}...'.format(port))
