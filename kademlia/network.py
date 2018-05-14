@@ -26,7 +26,7 @@ class Network(object):
 
     protocol_class = KademliaProtocol
 
-    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood', loop=None):
+    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood', loop=None, max_peers=64):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -48,6 +48,7 @@ class Network(object):
         self.protocol = None
         self.refresh_loop = None
         self.save_state_loop = None
+        self.max_peers = max_peers
         self.setup_stethoscope()
 
     def setup_stethoscope(self):
@@ -58,7 +59,7 @@ class Network(object):
         self.stethoscope_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.stethoscope_sock.setblocking(0)
         self.stethoscope_sock.bind(('0.0.0.0', self.heartbeat_port))
-        self.stethoscope_sock.listen(64)
+        self.stethoscope_sock.listen(self.max_peers)
         asyncio.ensure_future(self.stethoscope())
 
     async def stethoscope(self):

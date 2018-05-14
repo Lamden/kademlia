@@ -12,19 +12,18 @@ log = get_logger(__name__)
 
 
 class DHT:
-    def __init__(self, node_id=None, mode='neighborhood', rediscover_interval=10, cmd_cli=False, block=True, loop=None, ctx=None):
+    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
         self.discovery_mode = mode
-        self.rediscover_interval = rediscover_interval
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
-        
+
         self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
         self.ips = self.loop.run_until_complete(discover(self.discovery_mode))
 
         self.network_port = os.getenv('NETWORK_PORT', 5678)
-        self.network = Network(node_id=node_id, loop=self.loop)
+        self.network = Network(node_id=node_id, loop=self.loop, *args, **kwargs)
         self.network.listen(self.network_port)
 
         self.join_network()
@@ -85,11 +84,10 @@ class DHT:
         except: pass
 
     def listen_for_crawlers(self):
-        port = self.crawler_port
-        self.sock = sock = ctx.socket(zmq.REP)
-        sock.bind("tcp://*:{}".format(port))
-        log.debug('Listening to the world on port {}...'.format(port))
-        asyncio.ensure_future(self.listen(sock))
+        self.sock = self.ctx.socket(zmq.REP)
+        self.sock.bind("tcp://*:{}".format(self.crawler_port))
+        log.debug('Listening to the world on port {}...'.format(self.crawler_port))
+        asyncio.ensure_future(self.listen(self.sock))
 
     async def listen(self, socket):
         while True:
