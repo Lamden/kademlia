@@ -6,10 +6,9 @@ from kademlia.utils import digest
 from kademlia.logger import get_logger
 from queue import Queue
 import os, sys, uuid, time, threading, uuid, asyncio, random, zmq.asyncio, warnings, zmq, logging
-from zmq.utils.monitor import recv_monitor_message
+from multiprocessing import Process
 
 log = get_logger(__name__)
-
 
 class DHT:
     def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
@@ -20,8 +19,8 @@ class DHT:
 
         self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
-        self.ips = self.loop.run_until_complete(discover(self.discovery_mode))
-
+        self.ips = self.loop.run_until_complete(discover(self.ctx, self.discovery_mode))
+        if len(self.ips) == 0: self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
         self.network_port = os.getenv('NETWORK_PORT', 5678)
         self.network = Network(node_id=node_id, loop=self.loop, *args, **kwargs)
         self.network.listen(self.network_port)
@@ -78,18 +77,16 @@ class DHT:
 
     def join_network(self):
         log.debug('Joining network: {}'.format(self.ips))
-        try:
-            self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
-            self.loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
+        try: self.loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
         except: pass
 
     def listen_for_crawlers(self):
         self.sock = self.ctx.socket(zmq.REP)
         self.sock.bind("tcp://*:{}".format(self.crawler_port))
-        log.debug('Listening to the world on port {}...'.format(self.crawler_port))
         asyncio.ensure_future(self.listen(self.sock))
 
     async def listen(self, socket):
+        log.debug('Listening to the world on port {}...'.format(self.crawler_port))
         while True:
             msg = await socket.recv_multipart()
             msg_type, data = decode_msg(msg)

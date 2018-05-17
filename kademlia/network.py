@@ -13,10 +13,9 @@ from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 from kademlia.storage import ForgetfulStorage
 from kademlia.node import Node
-from kademlia.crawling import ValueSpiderCrawl, NodeSpiderCrawl, NodeIPSpiderCrawl
+from kademlia.crawling import ValueSpiderCrawl, NodeSpiderCrawl
 
 log = get_logger(__name__)
-
 
 class Network(object):
     """
@@ -64,25 +63,30 @@ class Network(object):
 
     async def stethoscope(self):
         self.connections = {}
-        self.poll = select.poll()
-        self.poll.register(self.stethoscope_sock.fileno(), select.POLLIN)
-        # self.poll = select.epoll()
-        # self.poll.register(self.stethoscope_sock.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
+        # self.poll = select.poll()
+        # self.poll.register(self.stethoscope_sock.fileno(), select.POLLIN)
+        self.poll = select.epoll()
+        self.poll.register(self.stethoscope_sock.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
         try:
             while True:
                 events = self.poll.poll(1)
                 for fileno, event in events:
                     if fileno == self.stethoscope_sock.fileno():
                         conn, addr = self.stethoscope_sock.accept()
-                        log.info("Client (%s, %s) connected" % addr)
-                    # elif event & select.EPOLLIN:
-                    elif event & select.POLLIN:
+                        log.info("Client (%s, %s) connected to server" % addr)
+                    elif event & (select.EPOLLIN | select.EPOLLONESHOT):
+                    # elif event & select.POLLIN:
                         conn, addr, node = self.connections[fileno]
-                        self.poll.unregister(fileno)
-                        conn.close()
-                        del self.connections[fileno]
-                        self.protocol.router.removeContact(node)
-                        log.info("Client (%s, %s) disconnected" % addr)
+                        try:
+                            conn.connect(addr)
+                        except Exception as e:
+                            if e.args[0] == 104:
+                                log.info("Client (%s, %s) disconnected" % addr)
+                                self.poll.unregister(fileno)
+                                conn.close()
+                                del self.connections[fileno]
+                                self.protocol.router.removeContact(node)
+
                 await asyncio.sleep(0.1)
         finally:
             self.poll.unregister(self.stethoscope_sock.fileno())
@@ -90,25 +94,29 @@ class Network(object):
             self.stethoscope_sock.close()
 
     def connect_to_neighbor(self, node):
-        if os.getenv('HOST_IP') == node.ip: return
+        if self.node.id == node.id: return
         addr = (node.ip, self.heartbeat_port)
         conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connections[conn.fileno()] = (conn, addr, node)
-        conn.connect(addr)
-        # self.poll.register(conn.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
-        self.poll.register(conn.fileno(), select.POLLIN)
-        log.info("Client (%s, %s) connected" % addr)
+        try:
+            conn.connect(addr)
+            self.poll.register(conn.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
+            # self.poll.register(conn.fileno(), select.POLLIN)
+            log.info("Client (%s, %s) connected" % addr)
+        except:
+            del self.connections[conn.fileno()]
+            pass
+
 
     async def lookup_ip(self, node_key):
         node_id = digest(node_key)
-        log.info("Lookup IP address for node with id {} and digest {}".format(node_id, digest))
-
         node = Node(node_id)
         nearest = self.protocol.router.findNeighbors(node)
         spider = NodeSpiderCrawl(self.protocol, self.node, nearest, self.ksize, self.alpha)
 
-        log.debug("Starting lookup for node_id {}".format(node_id))
-        res_node = await spider.find_ip(node_id)
+        log.debug("Starting lookup for node_key {}".format(node_key))
+        res_node = await spider.find_ip(node_id=node_id)
+        if type(res_node) == list: res_node = None
         log.debug('{} resolves to {}'.format(node_key, res_node))
 
         return res_node

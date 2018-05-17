@@ -1,0 +1,3 @@
+pyzmq==17.0.0
+rpcudp==3.0.0
+-e git+https://github.com/Lamden/vmnet.git@master#egg=vmnet

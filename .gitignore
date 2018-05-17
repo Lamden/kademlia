@@ -10,3 +10,6 @@ docs/_build
 kademlia/discovery/data/IP2LOCATION-LITE-DB5.csv
 *.DS_Store
 */logs
+venv
+logs
+*docker-compose.yml

@@ -101,8 +101,6 @@ class KademliaProtocol(RPCProtocol):
         """
         if not self.router.isNewNode(node):
             return
-
-        self.server.connect_to_neighbor(node)
         log.info("never seen %s before, adding to router", node)
         for key, value in self.storage.items():
             keynode = Node(digest(key))
@@ -115,6 +113,7 @@ class KademliaProtocol(RPCProtocol):
             if len(neighbors) == 0 or (newNodeClose and thisNodeClosest):
                 asyncio.ensure_future(self.callStore(node, key, value))
         self.router.addContact(node)
+        self.server.connect_to_neighbor(node)
 
     def handleCallResponse(self, result, node):
         """

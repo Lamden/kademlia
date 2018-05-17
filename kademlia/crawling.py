@@ -158,30 +158,6 @@ class NodeSpiderCrawl(SpiderCrawl):
             return list(self.nearest)
         return await self.find()
 
-class NodeIPSpiderCrawl(SpiderCrawl):
-    async def find(self):
-        """
-        Find the closest nodes.
-        """
-        return await self._find(self.protocol.callFindNode)
-
-    async def _nodesFound(self, responses):
-        """
-        Handle the result of an iteration in _find.
-        """
-        toremove = []
-        for peerid, response in responses.items():
-            response = RPCFindResponse(response)
-            if not response.happened():
-                toremove.append(peerid)
-            else:
-                self.nearest.push(response.getNodeList())
-        self.nearest.remove(toremove)
-        log.debug('>>>>>> {} {}'.format(list(self.nearest), self))
-        if self.nearest.allBeenContacted():
-            return list(self.nearest)
-        return await self.find()
-
 
 class RPCFindResponse(object):
     def __init__(self, response):
