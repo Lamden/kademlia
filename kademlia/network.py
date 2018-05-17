@@ -66,7 +66,7 @@ class Network(object):
         # self.poll = select.poll()
         # self.poll.register(self.stethoscope_sock.fileno(), select.POLLIN)
         self.poll = select.epoll()
-        self.poll.register(self.stethoscope_sock.fileno(), select.EPOLLIN | select.EPOLLONESHOT)
+        self.poll.register(self.stethoscope_sock.fileno(), select.EPOLLIN)# | select.EPOLLONESHOT)
         try:
             while True:
                 events = self.poll.poll(1)
@@ -74,7 +74,7 @@ class Network(object):
                     if fileno == self.stethoscope_sock.fileno():
                         conn, addr = self.stethoscope_sock.accept()
                         log.info("Client (%s, %s) connected to server" % addr)
-                    elif event & (select.EPOLLIN | select.EPOLLONESHOT):
+                    elif event & (select.EPOLLIN):# | select.EPOLLONESHOT):
                     # elif event & select.POLLIN:
                         conn, addr, node = self.connections[fileno]
                         try:
