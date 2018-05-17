@@ -4,7 +4,7 @@ import time, os
 
 def run_lookup_node():
     from kademlia.dht import DHT
-    import time, os, asyncio, threading
+    import time, os, asyncio
     loop = asyncio.get_event_loop()
     asyncio.set_event_loop(loop)
     node = DHT(node_id='vk_{}'.format(os.getenv('HOST_IP')), mode='test', block=False, cmd_cli=False)

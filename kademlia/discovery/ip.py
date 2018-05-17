@@ -45,11 +45,11 @@ def get_region_range(ip, max_away=5, recalculate=False):
                     idx_set = True
                 elif not idx_set:
                     ip_idx += 1
-                data.append(decimal_to_ip(int(row['from_ip'])))
+                data.append('{},{}'.format(decimal_to_ip(int(row['from_ip'])), row['city']))
         with open(NEIGHBOR_IP_FILE, 'w+') as f:
             data = data[ip_idx-max_away:ip_idx+max_away]
-            for ip in data:
-                f.write("{}\n".format(ip))
+            for d in data:
+                f.write("{}\n".format(d))
         print('Saved to {}!'.format(NEIGHBOR_IP_FILE))
     else:
         with open(NEIGHBOR_IP_FILE) as f:

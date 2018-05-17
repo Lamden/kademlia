@@ -107,7 +107,6 @@ class Network(object):
             del self.connections[conn.fileno()]
             pass
 
-
     async def lookup_ip(self, node_key):
         node_id = digest(node_key)
         node = Node(node_id)

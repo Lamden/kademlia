@@ -1,6 +1,4 @@
-from kademlia.discovery.msg import *
-from kademlia.discovery.ip import *
-from kademlia.discovery.ddd import *
+from kademlia.discovery.ddd import Discovery
 from kademlia.network import Network
 from kademlia.utils import digest
 from kademlia.logger import get_logger
@@ -10,16 +8,15 @@ from multiprocessing import Process
 
 log = get_logger(__name__)
 
-class DHT:
+class DHT(Discovery):
     def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.discovery_mode = mode
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
 
         self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
-        self.ips = self.loop.run_until_complete(discover(self.ctx, self.discovery_mode))
+        self.ips = self.loop.run_until_complete(self.discover(mode))
         if len(self.ips) == 0: self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
         self.network_port = os.getenv('NETWORK_PORT', 5678)
         self.network = Network(node_id=node_id, loop=self.loop, *args, **kwargs)
@@ -79,20 +76,6 @@ class DHT:
         log.debug('Joining network: {}'.format(self.ips))
         try: self.loop.run_until_complete(self.network.bootstrap([(ip, self.network_port) for ip in self.ips]))
         except: pass
-
-    def listen_for_crawlers(self):
-        self.sock = self.ctx.socket(zmq.REP)
-        self.sock.bind("tcp://*:{}".format(self.crawler_port))
-        asyncio.ensure_future(self.listen(self.sock))
-
-    async def listen(self, socket):
-        log.debug('Listening to the world on port {}...'.format(self.crawler_port))
-        while True:
-            msg = await socket.recv_multipart()
-            msg_type, data = decode_msg(msg)
-            if data:
-                log.debug("Received - {}: {}".format(msg_type, data))
-            socket.send(compose_msg())
 
 if __name__ == '__main__':
     server = DHT(node_id='vk_{}'.format(os.getenv('HOST_IP', '127.0.0.1')), block=True, cmd_cli=True)

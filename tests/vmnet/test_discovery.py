@@ -3,13 +3,23 @@ import unittest
 import time
 
 def run_node():
-    import asyncio, zmq.asyncio
-    from kademlia.discovery.ddd import discover, _listen_for_crawlers
-    loop = asyncio.get_event_loop()
-    ctx = zmq.asyncio.Context()
-    _listen_for_crawlers(ctx)
-    ips = loop.run_until_complete(discover(ctx, 'test'))
-    loop.run_forever()
+    import asyncio, zmq.asyncio, os
+    from kademlia.discovery.ddd import Discovery
+    from kademlia.logger import get_logger
+    log = get_logger(__name__)
+
+    class DHT(Discovery):
+        def __init__(self):
+            self.loop = asyncio.get_event_loop()
+            self.ctx = zmq.asyncio.Context()
+            self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
+        def status_update(self, status, msg, *args, **kwargs):
+            log.debug('{} - {}'.format(status, msg))
+
+    dht = DHT()
+    dht.listen_for_crawlers()
+    ips = dht.loop.run_until_complete(dht.discover('test'))
+    dht.loop.run_forever()
 
 class TestDDDHB(BaseNetworkTestCase):
     testname = 'discovery'

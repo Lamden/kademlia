@@ -12,70 +12,73 @@ import os, json, uuid, zmq, resource, socket, select, asyncio
 SOCKET_LIMIT = 2500
 log = get_logger(__name__)
 resource.setrlimit(resource.RLIMIT_NOFILE, (SOCKET_LIMIT, SOCKET_LIMIT))
-port = os.getenv('CRAWLER_PORT', 31337)
 
-async def discover(ctx, mode):
-    ips = {}
-    if mode == 'test':
-        host = os.getenv('HOST_IP', '127.0.0.1')
-        ips[host] = [decimal_to_ip(d) for d in range(*get_local_range(host))]
-    else:
-        public_ip = get_public_ip()
-        if mode == 'local':
-            ips['localhost'] = [decimal_to_ip(d) for d in range(*get_local_range(public_ip))]
-        elif mode == 'neighborhood':
-            for ip in get_region_range(public_ip):
-                ips[ip] = [decimal_to_ip(d) for d in range(*get_local_range(ip))]
-    log.debug('Scanning {} ...'.format(mode))
-    results = []
-    sem = asyncio.Semaphore(10000)
-    for h in ips:
-        results += await scan_all(ctx, sem, ips[h])
-    results = list(set([r for r in results if r != None]))
-    log.debug('Done.')
-    return results
+class Discovery:
+    _available_ips = {}
+    def get_available_ips(self):
+        return self._available_ips
 
-async def fetch(s, ip):
-    url = "tcp://{}:{}".format(ip, port)
-    s.connect(url)
-    s.send(compose_msg('discover'))
-    await s.recv()
-    return ip
+    async def discover(self, mode):
+        ips = {}
+        if mode == 'test':
+            host = os.getenv('HOST_IP', '127.0.0.1')
+            ips['virtual_network'] = [decimal_to_ip(d) for d in range(*get_local_range(host))]
+        else:
+            public_ip = get_public_ip()
+            if mode == 'local':
+                ips['localhost'] = [(decimal_to_ip(d), 'localhost') for d in range(*get_local_range(public_ip))]
+            elif mode == 'neighborhood':
+                for area in get_region_range(public_ip):
+                    ip, city = area.split(',')
+                    ips[city] = [decimal_to_ip(d) for d in range(*get_local_range(ip))]
+        log.debug('Scanning {} ...'.format(mode))
+        self.status_update(status='scan_start', msg='Starting scan in "{}" mode...'.format(mode))
+        results = []
+        self.sem = asyncio.Semaphore(10000)
+        for city in ips:
+            res = await self.scan_all(ips[city])
+            res = list(set([r for r in res if r != None]))
+            results += res
+            self.status_update(status='scan_processing', msg='Scanned: {} ({}/255 available)'.format(city, len(res)))
+            self._available_ips[city] = { 'count': len(res), 'ips': res }
+        log.debug('Done.')
+        self.status_update(status='scan_done', msg='Finished!', active_ips=results)
+        return results
 
-async def bound_fetch(ctx, sem, ip):
-    async with sem:
-        sock = ctx.socket(zmq.REQ)
-        sock.linger = 0
-        result = None
-        try: result = await asyncio.wait_for(fetch(sock, ip), timeout=0.5)
-        except asyncio.TimeoutError: pass
-        sock.close()
-        return result
+    def status_update(self, *args, **kwargs):
+        log.warn('status_update() not implemented. One can implement this function to capture any status updates')
 
-async def scan_all(ctx, sem, ips):
-    loop = asyncio.get_event_loop()
-    tasks = [asyncio.ensure_future(bound_fetch(ctx, sem, ip)) for ip in ips]
-    return await asyncio.ensure_future(asyncio.gather(*tasks))
+    async def fetch(self, s, ip):
+        url = "tcp://{}:{}".format(ip, self.crawler_port)
+        s.connect(url)
+        s.send(compose_msg('discover'))
+        await s.recv()
+        return ip
 
-def _listen_for_crawlers(ctx):
-    sock = ctx.socket(zmq.REP)
-    asyncio.ensure_future(_listen(sock))
+    async def bound_fetch(self, ip):
+        async with self.sem:
+            sock = self.ctx.socket(zmq.REQ)
+            sock.linger = 0
+            result = None
+            try: result = await asyncio.wait_for(self.fetch(sock, ip), timeout=0.5)
+            except asyncio.TimeoutError: pass
+            sock.close()
+            return result
 
-async def _listen(socket):
-    socket.bind("tcp://*:{}".format(port))
-    log.debug('Listening to the world on port {}...'.format(port))
-    while True:
-        msg = await socket.recv_multipart()
-        msg_type, data = decode_msg(msg)
-        if data:
-            log.debug("Received - {}: {}".format(msg_type, data))
-        socket.send(compose_msg())
+    async def scan_all(self, ips):
+        tasks = [asyncio.ensure_future(self.bound_fetch(ip)) for ip in ips]
+        return await asyncio.ensure_future(asyncio.gather(*tasks))
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='Do da decentralized dynamic discovery dance!')
-    parser.add_argument('--discovery_mode', help='local, neighborhood, popular, predictive', required=True)
-    args = parser.parse_args()
-    loop = asyncio.get_event_loop()
-    ips = loop.run_until_complete(discover(zmq.asyncio.Context(), args.discovery_mode))
-    print(ips)
+    def listen_for_crawlers(self):
+        self.sock = self.ctx.socket(zmq.REP)
+        self.sock.bind("tcp://*:{}".format(self.crawler_port))
+        asyncio.ensure_future(self.listen(self.sock))
+
+    async def listen(self, socket):
+        log.debug('Listening to the world on port {}...'.format(self.crawler_port))
+        while True:
+            msg = await socket.recv_multipart()
+            msg_type, data = decode_msg(msg)
+            if data:
+                log.debug("Received - {}: {}".format(msg_type, data))
+            socket.send(compose_msg())
