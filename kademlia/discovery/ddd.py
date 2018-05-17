@@ -45,9 +45,6 @@ class Discovery:
         self.status_update(status='scan_done', msg='Finished!', active_ips=results)
         return results
 
-    def status_update(self, *args, **kwargs):
-        log.warn('status_update() not implemented. One can implement this function to capture any status updates')
-
     async def fetch(self, s, ip):
         url = "tcp://{}:{}".format(ip, self.crawler_port)
         s.connect(url)

@@ -25,7 +25,7 @@ class Network(object):
 
     protocol_class = KademliaProtocol
 
-    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood', loop=None, max_peers=64):
+    def __init__(self, ksize=20, alpha=3, node_id=None, storage=None, discovery_mode='neighborhood', loop=None, max_peers=64, dht=None):
         """
         Create a server instance.  This will start listening on the given port.
 
@@ -74,6 +74,7 @@ class Network(object):
                     if fileno == self.stethoscope_sock.fileno():
                         conn, addr = self.stethoscope_sock.accept()
                         log.info("Client (%s, %s) connected to server" % addr)
+                        self.dht.status_update(status='client_connect', msg="Client (%s, %s) connected to server" % addr)
                     elif event & (select.EPOLLIN):# | select.EPOLLONESHOT):
                     # elif event & select.POLLIN:
                         conn, addr, node = self.connections[fileno]
@@ -82,6 +83,7 @@ class Network(object):
                         except Exception as e:
                             if e.args[0] == 104:
                                 log.info("Client (%s, %s) disconnected" % addr)
+                                self.dht.status_update(status='client_disconnect', msg="Client (%s, %s) disconnected" % addr)
                                 self.poll.unregister(fileno)
                                 conn.close()
                                 del self.connections[fileno]

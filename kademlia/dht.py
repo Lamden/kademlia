@@ -9,17 +9,17 @@ from multiprocessing import Process
 log = get_logger(__name__)
 
 class DHT(Discovery):
-    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
+    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, status_update_callback=None, *args, **kwargs):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
-
+        self._status_update_callback = status_update
         self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
         self.ips = self.loop.run_until_complete(self.discover(mode))
         if len(self.ips) == 0: self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))
         self.network_port = os.getenv('NETWORK_PORT', 5678)
-        self.network = Network(node_id=node_id, loop=self.loop, *args, **kwargs)
+        self.network = Network(node_id=node_id, loop=self.loop, dht=self, *args, **kwargs)
         self.network.listen(self.network_port)
 
         self.join_network()
@@ -33,6 +33,12 @@ class DHT(Discovery):
         if block:
             log.debug('Server started and blocking...')
             self.loop.run_forever()
+
+    def status_update(self, *args, **kwargs):
+        if not hasattr(self, '_status_update_callback'):
+            log.warn('status_update() not implemented. One can implement this function to capture any status updates')
+        else:
+            self._status_update_callback(*args, **kwargs)
 
     @staticmethod
     def command_line_interface(q):
