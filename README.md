@@ -67,3 +67,6 @@ python -m unittest
 
 ## Fidelity to Original Paper
 The current implementation should be an accurate implementation of all aspects of the paper save one - in Section 2.3 there is the requirement that the original publisher of a key/value republish it every 24 hours.  This library does not do this (though you can easily do this manually).
+
+## Differences from bmuller/kademlia
+This implementation supports automatically finding bootstraping node or it will start its own network if no one is found. You must set the ENV `PEPPER` to differentiate your application from other ones also using this repo. The original implementation employs timeout to drop nodes but this implementation creates a TCP connection and detects ungraceful disconnects with neighbors and updates the local routing table immediately.
