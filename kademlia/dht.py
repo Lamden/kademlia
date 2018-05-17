@@ -9,11 +9,10 @@ from multiprocessing import Process
 log = get_logger(__name__)
 
 class DHT(Discovery):
-    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, status_update_callback=None, *args, **kwargs):
+    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
-        self._status_update_callback = status_update
         self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
         self.ips = self.loop.run_until_complete(self.discover(mode))
@@ -33,6 +32,9 @@ class DHT(Discovery):
         if block:
             log.debug('Server started and blocking...')
             self.loop.run_forever()
+
+    def set_status_update_callback(self, callback):
+        self._status_update_callback = callback
 
     def status_update(self, *args, **kwargs):
         if not hasattr(self, '_status_update_callback'):
