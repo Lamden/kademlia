@@ -43,6 +43,7 @@ class Network(object):
         self.port = os.getenv('NETWORK_PORT', 5678)
         self.storage = storage or ForgetfulStorage()
         self.node = Node(digest(node_id) or digest(random.getrandbits(255)))
+        self.dht = dht
         self.transport = None
         self.protocol = None
         self.refresh_loop = None

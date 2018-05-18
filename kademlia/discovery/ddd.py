@@ -18,6 +18,7 @@ class Discovery:
     subnets = {}
     max_wait = 3
     min_bootstrap_nodes = 3
+    max_tasks = 10000
     def getavailable_ips(self):
         return self.available_ips
 
@@ -37,7 +38,7 @@ class Discovery:
                     self.subnets[get_subnet(ip)] = {'area': city, 'count': 0}
         log.debug('Scanning {} ...'.format(mode))
         self.status_update(status='scan_start', msg='Starting scan in "{}" mode...'.format(mode))
-        self.sem = asyncio.Semaphore(10000)
+        self.sem = asyncio.Semaphore(self.max_tasks)
         self.return_asap = return_asap
         all_ips = []
         for city in ips: all_ips += ips[city]

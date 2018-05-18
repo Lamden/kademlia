@@ -33,14 +33,11 @@ class DHT(Discovery):
             log.debug('Server started and blocking...')
             self.loop.run_forever()
 
-    def set_status_update_callback(self, callback):
-        self._status_update_callback = callback
-
-    def status_update(self, *args, **kwargs):
-        if not hasattr(self, '_status_update_callback'):
+    def _status_update(self, *args, **kwargs):
+        if not hasattr(self, 'status_update'):
             log.warn('status_update() not implemented. One can implement this function to capture any status updates')
         else:
-            self._status_update_callback(*args, **kwargs)
+            self.status_update(*args, **kwargs)
 
     @staticmethod
     def command_line_interface(q):
