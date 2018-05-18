@@ -16,6 +16,8 @@ def get_public_ip():
     except:
         raise Exception('Cannot get your public ip!')
 
+def get_subnet(ip):
+    return '.'.join(ip.split('.')[:-1])
 
 def truncate_ip(ip):
     return ip_to_decimal('.'.join(ip.split('.')[:3]+['0']))
@@ -46,8 +48,11 @@ def get_region_range(ip, max_away=5, recalculate=False):
                 elif not idx_set:
                     ip_idx += 1
                 data.append('{},{}'.format(decimal_to_ip(int(row['from_ip'])), row['city']))
+
         with open(NEIGHBOR_IP_FILE, 'w+') as f:
             data = data[ip_idx-max_away:ip_idx+max_away]
+            if os.getenv('TEST_NAME'):
+                f.write('{},{}\n'.format(os.getenv('HOST_IP'), 'virtual_network'))
             for d in data:
                 f.write("{}\n".format(d))
         print('Saved to {}!'.format(NEIGHBOR_IP_FILE))
@@ -60,3 +65,11 @@ def get_region_range(ip, max_away=5, recalculate=False):
 
 def get_popular_range():
     pass
+
+if __name__ == '__main__':
+    path = '.'
+    WORLD_IP_FILE = '{}/data/world.csv'.format(path)
+    NEIGHBOR_IP_FILE = '{}/data/neighborhood.txt'.format(path)
+    POPULAR_IP_FILE = '{}/data/popular.txt'.format(path)
+    public_ip = get_public_ip()
+    get_region_range(public_ip, max_away=10, recalculate=True)

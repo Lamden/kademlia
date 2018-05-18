@@ -8,7 +8,7 @@ def compose_msg(data=''):
     return bytearray(':'.join([pepper] + data), 'utf-8')
 
 def decode_msg(msg):
-    msg = b''.join(msg).decode('utf-8')
+    msg = msg.decode('utf-8')
     pepper = os.getenv('PEPPER','ddd')
     if msg[:len(pepper)] == pepper:
         data = msg[len(pepper)+1:].split(':')

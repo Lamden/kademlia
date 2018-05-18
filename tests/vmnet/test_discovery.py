@@ -18,7 +18,7 @@ def run_node():
 
     dht = DHT()
     dht.listen_for_crawlers()
-    ips = dht.loop.run_until_complete(dht.discover('test'))
+    ips = dht.loop.run_until_complete(dht.discover('neighborhood'))
     dht.loop.run_forever()
 
 class TestDDDHB(BaseNetworkTestCase):
