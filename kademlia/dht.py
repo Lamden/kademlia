@@ -3,17 +3,16 @@ from kademlia.network import Network
 from kademlia.utils import digest
 from kademlia.logger import get_logger
 from queue import Queue
-import os, sys, uuid, time, threading, uuid, asyncio, random, zmq.asyncio, warnings, zmq, logging
+import os, sys, uuid, time, threading, uuid, asyncio, random, warnings, logging
 from multiprocessing import Process
 
 log = get_logger(__name__)
 
 class DHT(Discovery):
-    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, ctx=None, *args, **kwargs):
+    def __init__(self, node_id=None, mode='neighborhood', cmd_cli=False, block=True, loop=None, *args, **kwargs):
         self.loop = loop if loop else asyncio.get_event_loop()
         asyncio.set_event_loop(self.loop)
         self.crawler_port = os.getenv('CRAWLER_PORT', 31337)
-        self.ctx = ctx if ctx else zmq.asyncio.Context()
         self.listen_for_crawlers()
         self.ips = self.loop.run_until_complete(self.discover(mode))
         if len(self.ips) == 0: self.ips.append(os.getenv('HOST_IP', '127.0.0.1'))

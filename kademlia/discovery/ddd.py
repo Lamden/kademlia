@@ -6,8 +6,7 @@
 from kademlia.discovery.ip import *
 from kademlia.discovery.msg import *
 from kademlia.logger import get_logger
-import zmq.asyncio
-import os, json, uuid, zmq, resource, socket, select, asyncio, time
+import os, json, uuid, resource, socket, select, asyncio, time
 
 SOCKET_LIMIT = 2500
 log = get_logger(__name__)
